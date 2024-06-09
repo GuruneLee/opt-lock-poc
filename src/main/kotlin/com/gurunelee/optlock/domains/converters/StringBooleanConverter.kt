@@ -1,6 +1,7 @@
-package com.gurunelee.optlock.converters
+package com.gurunelee.optlock.domains.converters
 
 import javax.persistence.AttributeConverter
+import javax.persistence.Converter
 
 /**
  * Created by chlee on 5/1/24.
@@ -9,6 +10,7 @@ import javax.persistence.AttributeConverter
  * @version opt-lock
  * @since opt-lock
  */
+@Converter
 class StringBooleanConverter: AttributeConverter<Boolean?, String?> {
     override fun convertToDatabaseColumn(value: Boolean?): String? {
         return when (value) {

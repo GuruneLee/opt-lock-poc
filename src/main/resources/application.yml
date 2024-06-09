@@ -20,3 +20,4 @@ spring:
       hibernate.jdbc.order_inserts: true
       hibernate.query.in_clause_parameter_padding: true
     open-in-view: false
+    show-sql: true
