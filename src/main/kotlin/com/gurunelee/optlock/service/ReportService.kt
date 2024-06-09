@@ -14,7 +14,7 @@ class ReportService (
     fun getReport(reportKey: Long) = reportRepository.findById(reportKey).get()
 
     @Transactional(readOnly = true)
-    fun getReportAnswers(reportKey: Long) = getReport(reportKey).answers
+    fun getReportAnswers(reportKey: Long) = reportRepository.findAnswers(reportKey)
 
     @Transactional
     fun addReport(title: String): Report {
@@ -35,7 +35,8 @@ class ReportService (
     }
 
     @Transactional
-    fun clear() {
-        reportRepository.deleteAll()
+    fun deleteReport(reportKey: Long) {
+        reportRepository.deleteById(reportKey)
+        reportRepository.deleteAnswersById(reportKey)
     }
 }

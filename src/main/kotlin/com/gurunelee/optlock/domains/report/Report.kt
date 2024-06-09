@@ -46,8 +46,9 @@ class Report (
         answers.forEach{
             if(!it.isSaved()) {
                 addAnswer(it.value)
-            } else {
-                it.last = false
+            }
+            this.answers.find { answer -> answer.value == it.value }?.let { ra ->
+                ra.last = false
                 addAnswer(it.value)
             }
         }

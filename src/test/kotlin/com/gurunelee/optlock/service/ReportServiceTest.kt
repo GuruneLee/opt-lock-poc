@@ -18,7 +18,10 @@ class ReportServiceTest {
 
     @AfterEach
     fun tearDown() {
-        reportService.clear()
+//        reportRepository.findAll().forEach {
+//            reportRepository.deleteAnswersById(it.reportKey)
+//            reportService.deleteReport(it.reportKey)
+//        }
     }
 
     @Test
@@ -53,17 +56,19 @@ class ReportServiceTest {
             ReportAnswer(value = "2", last = true, report = reportService.getReport(reportKey)),
             ReportAnswer(value = "3", last = true, report = reportService.getReport(reportKey)),
         )
-        reportService.saveReport(reportKey, answers) // 최초 저장
-        val oldAnswers = reportService.saveReport(reportKey, answers).answers
+        val saveReport = reportService.saveReport(reportKey, answers)
+        val oldAnswers = saveReport.answers
 
         // when
-        val tab1Answers = oldAnswers.onEach { it.value += 10 }.toList()
+        val tab1Answers =
+            oldAnswers.map { it.newValue(it.value + "tab1") }.toList()
         reportService.saveReport(
             reportKey,
             tab1Answers
         )
 
-        val tab2Answers = oldAnswers.onEach { it.value += 20 }.toList()
+        val tab2Answers =
+            oldAnswers.map { it.newValue(it.value + "tab2") }.toList()
         reportService.saveReport(
             reportKey,
             tab2Answers
@@ -71,6 +76,8 @@ class ReportServiceTest {
 
         // then
         val result = reportService.getReportAnswers(reportKey)
-        assertEquals(3, result.size)
+        assertEquals(6, result.size)
     }
 }
+
+fun ReportAnswer.newValue(value: String) = ReportAnswer(answerKey = this.answerKey, value = value, last = this.last, report = this.report)
