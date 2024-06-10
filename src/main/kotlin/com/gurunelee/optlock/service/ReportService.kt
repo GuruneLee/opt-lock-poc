@@ -35,8 +35,9 @@ class ReportService (
     }
 
     @Transactional
-    fun deleteReport(reportKey: Long) {
-        reportRepository.deleteById(reportKey)
-        reportRepository.deleteAnswersById(reportKey)
+    fun deleteAllReport() {
+        reportRepository.findAll().forEach {
+            reportRepository.delete(it)
+        }
     }
 }

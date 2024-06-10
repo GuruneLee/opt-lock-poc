@@ -26,7 +26,7 @@ class Report (
     ){
     @OneToMany(
         fetch = FetchType.LAZY,
-        cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH],
+        cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH, CascadeType.REMOVE],
         mappedBy = "report"
     )
     val answers: MutableSet<ReportAnswer> = mutableSetOf()
@@ -46,10 +46,11 @@ class Report (
         answers.forEach{
             if(!it.isSaved()) {
                 addAnswer(it.value)
-            }
-            this.answers.find { answer -> answer.value == it.value }?.let { ra ->
-                ra.last = false
-                addAnswer(it.value)
+            } else {
+                this.answers.find { answer -> answer.answerKey == it.answerKey }?.let { old ->
+                    old.last = false
+                    addAnswer(it.value)
+                }
             }
         }
     }

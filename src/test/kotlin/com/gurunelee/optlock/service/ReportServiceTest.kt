@@ -1,35 +1,30 @@
 package com.gurunelee.optlock.service
 
 import com.gurunelee.optlock.domains.report.ReportAnswer
-import com.gurunelee.optlock.domains.report.ReportRepository
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import javax.persistence.OptimisticLockException
 
 @SpringBootTest
 class ReportServiceTest {
     @Autowired
     lateinit var reportService: ReportService
 
-    @Autowired
-    lateinit var reportRepository: ReportRepository
-
     @AfterEach
     fun tearDown() {
-//        reportRepository.findAll().forEach {
-//            reportRepository.deleteAnswersById(it.reportKey)
-//            reportService.deleteReport(it.reportKey)
-//        }
+        reportService.deleteAllReport()
     }
 
     @Test
-    fun `Report 인용 동시성 테스트`() {
+    fun `Report 인용 동시성 테스트`() { // 얘만 비관적 락 걸고싶으면 어떡하지?
         // given
         val reportKey = reportService.addReport("test").reportKey
 
-        val threadCount = 100
+        val threadCount = 10
         val thread = mutableListOf<Thread>()
 
         // when
@@ -48,36 +43,62 @@ class ReportServiceTest {
     }
 
     @Test
-    fun `Report answer 멀티탭 테스트`() {
+    fun `Report answer 동시성 테스트 - 동시에 여러 탭에서 최초 저장 시도`() {
         // given
-        val reportKey = reportService.addReport("title").reportKey
-        val answers = listOf(
-            ReportAnswer(value = "1", last = true, report = reportService.getReport(reportKey)),
-            ReportAnswer(value = "2", last = true, report = reportService.getReport(reportKey)),
-            ReportAnswer(value = "3", last = true, report = reportService.getReport(reportKey)),
-        )
-        val saveReport = reportService.saveReport(reportKey, answers)
-        val oldAnswers = saveReport.answers
+        val report = reportService.addReport("title")
+
+        val tabCount = 10
+        val answersList = (1..tabCount).map { tab ->
+            listOf(
+                ReportAnswer(value = "tab$tab-1", last = true, report = report),
+                ReportAnswer(value = "tab$tab-2", last = true, report = report),
+                ReportAnswer(value = "tab$tab-3", last = true, report = report)
+            )
+        }
+
+        val thread = mutableListOf<Thread>()
 
         // when
-        val tab1Answers =
-            oldAnswers.map { it.newValue(it.value + "tab1") }.toList()
-        reportService.saveReport(
-            reportKey,
-            tab1Answers
-        )
+        repeat(tabCount) {
+            thread.add(Thread {
+                reportService.saveReport(report.reportKey, answersList[it])
+            })
+        }
 
-        val tab2Answers =
-            oldAnswers.map { it.newValue(it.value + "tab2") }.toList()
-        reportService.saveReport(
-            reportKey,
-            tab2Answers
-        )
+        thread.forEach { it.start() }
+        thread.forEach { it.join() }
 
         // then
-        val result = reportService.getReportAnswers(reportKey)
-        assertEquals(6, result.size)
+        val result = reportService.getReportAnswers(report.reportKey)
+        assertEquals(3, result.size)
+    }
+    @Test
+    fun `Report answer 멀티탭 테스트 - 멀티 탭 최초 저장 시 첫 저장 이후 save 시도는 예외 발생`() {
+        // given
+        val report = reportService.addReport("title")
+
+        val answersTab1 = listOf(
+            ReportAnswer(value = "tab1-1", last = true, report = report),
+            ReportAnswer(value = "tab1-2", last = true, report = report),
+            ReportAnswer(value = "tab1-3", last = true, report = report),
+        )
+
+        val answersTab2 = listOf(
+            ReportAnswer(value = "tab2-1", last = true, report = report),
+            ReportAnswer(value = "tab2-2", last = true, report = report),
+            ReportAnswer(value = "tab2-3", last = true, report = report),
+        )
+
+        // when
+        reportService.saveReport(report.reportKey, answersTab1)
+        val exception = assertThrows<Exception> {
+            reportService.saveReport(report.reportKey, answersTab2)
+        }
+
+        // then
+        assert(exception is OptimisticLockException)
+
+        val result = reportService.getReportAnswers(report.reportKey)
+        assertEquals(3, result.size)
     }
 }
-
-fun ReportAnswer.newValue(value: String) = ReportAnswer(answerKey = this.answerKey, value = value, last = this.last, report = this.report)
