@@ -1,5 +1,6 @@
 package com.gurunelee.optlock.domains.report
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import javax.persistence.*
 
 /**
@@ -16,6 +17,9 @@ class Report (
     @Column(name = "REPORT_KEY", nullable = false, updatable = false)
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val reportKey : Long = 0L,
+
+    @Version
+    val version: Long = 0L,
 
     @Column(name = "TITLE", nullable = false)
     val title: String,
@@ -42,7 +46,14 @@ class Report (
         answers.add(answer)
     }
 
-    fun createOrUpdateAnswers(answers: List<ReportAnswer>) {
+    fun createOrUpdateAnswers(answers: List<ReportAnswer>, version: Long?) {
+        if (this.version != version) {
+            throw ObjectOptimisticLockingFailureException(
+                this::class.java,
+                "[key:${this.reportKey}][${this.version}:${this.version}] Version mismatch"
+            )
+        }
+
         answers.forEach{
             if(!it.isSaved()) {
                 addAnswer(it.value)

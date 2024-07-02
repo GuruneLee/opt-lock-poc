@@ -7,8 +7,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import javax.persistence.OptimisticLockException
+import org.springframework.orm.ObjectOptimisticLockingFailureException
+import org.springframework.test.context.ActiveProfiles
 
+@ActiveProfiles("h2")
 @SpringBootTest
 class ReportServiceTest {
     @Autowired
@@ -39,7 +41,7 @@ class ReportServiceTest {
 
         // then
         val report = reportService.getReport(reportKey)
-        assertEquals(threadCount, report.quotedCount)
+        assertEquals(threadCount.toLong(), report.quotedCount)
     }
 
     @Test
@@ -61,7 +63,7 @@ class ReportServiceTest {
         // when
         repeat(tabCount) {
             thread.add(Thread {
-                reportService.saveReport(report.reportKey, answersList[it])
+                reportService.saveReport(report.reportKey, answersList[it], report.version)
             })
         }
 
@@ -72,6 +74,7 @@ class ReportServiceTest {
         val result = reportService.getReportAnswers(report.reportKey)
         assertEquals(3, result.size)
     }
+
     @Test
     fun `Report answer 멀티탭 테스트 - 멀티 탭 최초 저장 시 첫 저장 이후 save 시도는 예외 발생`() {
         // given
@@ -90,14 +93,12 @@ class ReportServiceTest {
         )
 
         // when
-        reportService.saveReport(report.reportKey, answersTab1)
-        val exception = assertThrows<Exception> {
-            reportService.saveReport(report.reportKey, answersTab2)
+        reportService.saveReport(report.reportKey, answersTab1, report.version)
+        assertThrows<ObjectOptimisticLockingFailureException> {
+            reportService.saveReport(report.reportKey, answersTab2, report.version)
         }
 
         // then
-        assert(exception is OptimisticLockException)
-
         val result = reportService.getReportAnswers(report.reportKey)
         assertEquals(3, result.size)
     }

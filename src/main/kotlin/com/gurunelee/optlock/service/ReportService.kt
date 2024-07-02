@@ -13,6 +13,9 @@ class ReportService (
     @Transactional(readOnly = true)
     fun getReport(reportKey: Long) = reportRepository.findById(reportKey).get()
 
+    @Transactional
+    fun getReportWithOptimisticLock(reportKey: Long) = reportRepository.findOptimisticByReportKey(reportKey).get()
+
     @Transactional(readOnly = true)
     fun getReportAnswers(reportKey: Long) = reportRepository.findAnswers(reportKey)
 
@@ -22,15 +25,15 @@ class ReportService (
     }
 
     @Transactional
-    fun saveReport(reportKey: Long, answers: List<ReportAnswer>): Report {
-        return getReport(reportKey).apply {
-            createOrUpdateAnswers(answers)
+    fun saveReport(reportKey: Long, answers: List<ReportAnswer>, version: Long?): Report {
+        return getReportWithOptimisticLock(reportKey).apply {
+            createOrUpdateAnswers(answers, version)
         }
     }
 
     @Transactional
     fun quoteReport(reportKey: Long) {
-        val report = reportRepository.findById(reportKey).get()
+        val report = reportRepository.findPessimisticByReportKey(reportKey).get()
         report.quote()
     }
 
